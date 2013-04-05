@@ -1,4 +1,4 @@
-#!/usr/bin/env python3.2
+#!/usr/bin/env python
 
 '''
 A WebSocket to TCP socket proxy with support for "wss://" encryption.
@@ -20,25 +20,6 @@ except:
     from cgi import parse_qs
     from urlparse import urlparse
 
-import socketserver
-import threading
-
-class FlashPolicyHandler(socketserver.BaseRequestHandler):
-    def handle(self):
-            # self.request is the TCP socket connected to the client
-            self.data = self.request.recv(1024).strip()
-            print ("%s wrote: %s" % (self.client_address[0], self.data))
-            if self.data.startswith("<policy-file-request/>".encode('latin1')):
-                print ('received policy')
-                self.request.send(bytes('<?xml version="1.0"?><cross-domain-policy><allow-access-from domain="*" to-ports="*" /></cross-domain-policy>', 'UTF-8'))
-
-def startPolicyServer():
-    try:
-        flashPolicyServer = socketserver.TCPServer(("0.0.0.0", 843), FlashPolicyHandler)
-        flashPolicyServer.serve_forever();
-    except:
-        print("Unable to open policy server, perhaps because it's already open")
-
 class WebSocketProxy(websocket.WebSocketServer):
     """
     Proxy traffic to and from a WebSockets client to a normal TCP
@@ -46,11 +27,6 @@ class WebSocketProxy(websocket.WebSocketServer):
     encoded/decoded to allow binary data to be sent/received to/from
     the target.
     """
-
-    # Create the flash policy server
-    th = threading.Thread(target=startPolicyServer)
-    th.daemon = True
-    th.start()
 
     buffer_size = 65536
 

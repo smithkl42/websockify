@@ -6,9 +6,9 @@ Copyright 2011 Joel Martin
 Licensed under LGPL version 3 (see docs/LICENSE.LGPL-3)
 
 Supports following protocol versions:
-    - http://tools.ietf.org/html/draft-ietf-hybi-thewebsocketprotocol-07
+    - http://tools.ietf.org/html/draft-hixie-thewebsocketprotocol-75
+    - http://tools.ietf.org/html/draft-hixie-thewebsocketprotocol-76
     - http://tools.ietf.org/html/draft-ietf-hybi-thewebsocketprotocol-10
-    - http://tools.ietf.org/html/rfc6455
 
 You can make a cert/key with openssl using:
 openssl req -new -x509 -days 365 -nodes -out self.pem -keyout self.pem
@@ -37,8 +37,8 @@ try:    from http.server import SimpleHTTPRequestHandler
 except: from SimpleHTTPServer import SimpleHTTPRequestHandler
 
 # python 2.6 differences
-try:    from hashlib import sha1
-except: from sha import sha as sha1
+try:    from hashlib import md5, sha1
+except: from md5 import md5; from sha import sha as sha1
 
 # python 2.5 differences
 try:
@@ -71,6 +71,14 @@ class WebSocketServer(object):
     """
 
     buffer_size = 65536
+
+
+    server_handshake_hixie = """HTTP/1.1 101 Web Socket Protocol Handshake\r
+Upgrade: WebSocket\r
+Connection: Upgrade\r
+%sWebSocket-Origin: %s\r
+%sWebSocket-Location: %s://%s%s\r
+"""
 
     server_handshake_hybi = """HTTP/1.1 101 Switching Protocols\r
 Upgrade: websocket\r
@@ -373,6 +381,33 @@ Sec-WebSocket-Accept: %s\r
 
         return f
 
+    @staticmethod
+    def encode_hixie(buf):
+        return s2b("\x00" + b2s(b64encode(buf)) + "\xff"), 1, 1
+
+    @staticmethod
+    def decode_hixie(buf):
+        end = buf.find(s2b('\xff'))
+        return {'payload': b64decode(buf[1:end]),
+                'hlen': 1,
+                'masked': False,
+                'length': end - 1,
+                'left': len(buf) - (end + 1)}
+
+
+    @staticmethod
+    def gen_md5(keys):
+        """ Generate hash value for WebSockets hixie-76. """
+        key1 = keys['Sec-WebSocket-Key1']
+        key2 = keys['Sec-WebSocket-Key2']
+        key3 = keys['key3']
+        spaces1 = key1.count(" ")
+        spaces2 = key2.count(" ")
+        num1 = int("".join([c for c in key1 if c.isdigit()])) / spaces1
+        num2 = int("".join([c for c in key2 if c.isdigit()])) / spaces2
+
+        return b2s(md5(pack('>II8s',
+            int(num1), int(num2), key3)).digest())
 
     #
     # WebSocketServer logging/output functions
@@ -409,10 +444,16 @@ Sec-WebSocket-Accept: %s\r
 
         if bufs:
             for buf in bufs:
-                if self.base64:
-                    encbuf, lenhead, lentail = self.encode_hybi(buf, opcode=1, base64=True)
+                if self.version.startswith("hybi"):
+                    if self.base64:
+                        encbuf, lenhead, lentail = self.encode_hybi(
+                                buf, opcode=1, base64=True)
+                    else:
+                        encbuf, lenhead, lentail = self.encode_hybi(
+                                buf, opcode=2, base64=False)
+
                 else:
-                    encbuf, lenhead, lentail = self.encode_hybi(buf, opcode=2, base64=False)
+                    encbuf, lenhead, lentail = self.encode_hixie(buf)
 
                 if self.rec:
                     self.rec.write("%s,\n" %
@@ -457,20 +498,40 @@ Sec-WebSocket-Accept: %s\r
             self.recv_part = None
 
         while buf:
-            frame = self.decode_hybi(buf, base64=self.base64)
-            #print("Received buf: %s, frame: %s" % (repr(buf), frame))
+            if self.version.startswith("hybi"):
 
-            if frame['payload'] == None:
-                # Incomplete/partial frame
-                self.traffic("}.")
-                if frame['left'] > 0:
-                    self.recv_part = buf[-frame['left']:]
-                break
-            else:
-                if frame['opcode'] == 0x8: # connection close
-                    closed = {'code': frame['close_code'],
-                              'reason': frame['close_reason']}
+                frame = self.decode_hybi(buf, base64=self.base64)
+                #print("Received buf: %s, frame: %s" % (repr(buf), frame))
+
+                if frame['payload'] == None:
+                    # Incomplete/partial frame
+                    self.traffic("}.")
+                    if frame['left'] > 0:
+                        self.recv_part = buf[-frame['left']:]
                     break
+                else:
+                    if frame['opcode'] == 0x8: # connection close
+                        closed = {'code': frame['close_code'],
+                                  'reason': frame['close_reason']}
+                        break
+
+            else:
+                if buf[0:2] == s2b('\xff\x00'):
+                    closed = {'code': 1000,
+                              'reason': "Client sent orderly close frame"}
+                    break
+
+                elif buf[0:2] == s2b('\x00\xff'):
+                    buf = buf[2:]
+                    continue # No-op
+
+                elif buf.count(s2b('\xff')) == 0:
+                    # Partial frame
+                    self.traffic("}.")
+                    self.recv_part = buf
+                    break
+
+                frame = self.decode_hixie(buf)
 
             self.traffic("}")
 
@@ -499,9 +560,17 @@ Sec-WebSocket-Accept: %s\r
     def send_close(self, code=1000, reason=''):
         """ Send a WebSocket orderly close frame. """
 
-        msg = pack(">H%ds" % len(reason), code, reason)
-        buf, h, t = self.encode_hybi(msg, opcode=0x08, base64=False)
-        self.client.send(buf)
+        if self.version.startswith("hybi"):
+            msg = pack(">H%ds" % len(reason), code, reason)
+
+            buf, h, t = self.encode_hybi(msg, opcode=0x08, base64=False)
+            self.client.send(buf)
+
+        elif self.version == "hixie-76":
+            buf = s2b('\xff\x00')
+            self.client.send(buf)
+
+        # No orderly close for 75
 
     def do_websocket_handshake(self, headers, path):
         h = self.headers = headers
@@ -543,7 +612,28 @@ Sec-WebSocket-Accept: %s\r
             response += "\r\n"
 
         else:
-            raise self.EClose("Missing Sec-WebSocket-Version header. Hixie protocols not supported.")
+            # Hixie version of the protocol (75 or 76)
+
+            if h.get('key3'):
+                trailer = self.gen_md5(h)
+                pre = "Sec-"
+                self.version = "hixie-76"
+            else:
+                trailer = ""
+                pre = ""
+                self.version = "hixie-75"
+
+            # We only support base64 in Hixie era
+            self.base64 = True
+
+            response = self.server_handshake_hixie % (pre,
+                    h['Origin'], pre, self.scheme, h['Host'], path)
+
+            if 'base64' in protocols:
+                response += "%sWebSocket-Protocol: base64\r\n" % pre
+            else:
+                self.msg("Warning: client does not report 'base64' protocol support")
+            response += "\r\n" + trailer
 
         return response
 
@@ -567,15 +657,16 @@ Sec-WebSocket-Accept: %s\r
         """
         stype = ""
         ready = select.select([sock], [], [], 3)[0]
+
         
         if not ready:
             raise self.EClose("ignoring socket not ready")
         # Peek, but do not read the data so that we have a opportunity
         # to SSL wrap the socket first
         handshake = sock.recv(1024, socket.MSG_PEEK)
-        self.msg("Handshake=[%s], len=[%s]" % (handshake, len(handshake)))
+        #self.msg("Handshake [%s]" % handshake)
 
-        if handshake == "" or len(handshake) == 0:
+        if handshake == "":
             raise self.EClose("ignoring empty handshake")
 
         elif handshake.startswith(s2b("<policy-file-request/>")):
@@ -585,7 +676,7 @@ Sec-WebSocket-Accept: %s\r
             raise self.EClose("Sending flash policy response")
 
         elif handshake[0] in ("\x16", "\x80", 22, 128):
-            self.msg("SSL wrap the connection")
+            # SSL wrap the connection
             if not ssl:
                 raise self.EClose("SSL connection but no 'ssl' module")
             if not os.path.exists(self.cert):
@@ -615,12 +706,10 @@ Sec-WebSocket-Accept: %s\r
             raise self.EClose("non-SSL connection received but disallowed")
 
         else:
-            self.msg("Normal WS connection")
             retsock = sock
             self.scheme = "ws"
             stype = "Plain non-SSL (ws://)"
 
-        self.msg("Getting WSRequestHandler")
         wsh = WSRequestHandler(retsock, address, not self.web)
         if wsh.last_code == 101:
             # Continue on to handle WebSocket upgrade
@@ -690,12 +779,10 @@ Sec-WebSocket-Accept: %s\r
         # handler process        
         try:
             try:
-                self.msg("starting handshake; startsock:%s, address:%s" % (str(startsock), str(address)))
                 self.client = self.do_handshake(startsock, address)
 
                 if self.record:
                     # Record raw frame data as JavaScript array
-                    self.msg("recording raw frame data as JavaScript array")
                     fname = "%s.%s" % (self.record,
                                         self.handler_id)
                     self.msg("opening record file: %s" % fname)
@@ -706,7 +793,6 @@ Sec-WebSocket-Accept: %s\r
                             % encoding)
                     self.rec.write("var VNC_frame_data = [\n")
 
-                self.msg("setting ws_connection=true")
                 self.ws_connection = True
                 self.new_client()
             except self.CClose:
@@ -870,6 +956,11 @@ class WSRequestHandler(SimpleHTTPRequestHandler):
     def do_GET(self):
         if (self.headers.get('upgrade') and
                 self.headers.get('upgrade').lower() == 'websocket'):
+
+            if (self.headers.get('sec-websocket-key1') or
+                    self.headers.get('websocket-key1')):
+                # For Hixie-76 read out the key hash
+                self.headers.__setitem__('key3', self.rfile.read(8))
 
             # Just indicate that an WebSocket upgrade is needed
             self.last_code = 101

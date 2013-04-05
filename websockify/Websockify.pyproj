@@ -1,0 +1,111 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <PropertyGroup>
+    <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
+    <SchemaVersion>2.0</SchemaVersion>
+    <ProjectGuid>f6bb2721-ccad-49f5-9a48-dd9ec5c0e0cf</ProjectGuid>
+    <ProjectHome>..\</ProjectHome>
+    <StartupFile>websockify\websocketproxy.py</StartupFile>
+    <SearchPath>
+    </SearchPath>
+    <WorkingDirectory>.</WorkingDirectory>
+    <OutputPath>.</OutputPath>
+    <InterpreterId>2af0f10d-7135-4994-9156-5d01c9c11b7e</InterpreterId>
+    <InterpreterVersion>3.2</InterpreterVersion>
+    <Name>Websockify</Name>
+    <RootNamespace>Websockify</RootNamespace>
+    <LaunchProvider>Standard Python launcher</LaunchProvider>
+    <CommandLineArguments>5901 localhost:4511</CommandLineArguments>
+    <InterpreterPath />
+    <InterpreterArguments />
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)' == 'Debug' ">
+    <DebugSymbols>true</DebugSymbols>
+    <EnableUnmanagedDebugging>false</EnableUnmanagedDebugging>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)' == 'Release' ">
+    <DebugSymbols>true</DebugSymbols>
+    <EnableUnmanagedDebugging>false</EnableUnmanagedDebugging>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="setup.py" />
+    <Compile Include="websockify.py" />
+    <Compile Include="build\lib\websockify\websocket.py" />
+    <Compile Include="build\lib\websockify\websocketproxy.py" />
+    <Compile Include="build\lib\websockify\__init__.py" />
+    <Compile Include="tests\b64_vs_utf8.py" />
+    <Compile Include="tests\echo.py" />
+    <Compile Include="tests\latency.py" />
+    <Compile Include="tests\load.py" />
+    <Compile Include="tests\utf8-list.py" />
+    <Compile Include="websockify\websocket.py" />
+    <Compile Include="websockify\websocketproxy.py" />
+    <Compile Include="websockify\__init__.py" />
+    <Content Include="CHANGES.txt" />
+    <Content Include="LICENSE.txt" />
+    <Content Include="docs\flash_policy.txt" />
+    <Content Include="docs\latency_results.txt" />
+    <Content Include="docs\release.txt" />
+    <Content Include="include\web-socket-js\README.txt" />
+    <Content Include="other\node_modules\optimist\node_modules\wordwrap\test\idleness.txt" />
+    <Content Include="websockify.egg-info\dependency_links.txt" />
+    <Content Include="websockify.egg-info\entry_points.txt" />
+    <Content Include="websockify.egg-info\requires.txt" />
+    <Content Include="websockify.egg-info\SOURCES.txt" />
+    <Content Include="websockify.egg-info\top_level.txt" />
+    <Content Include="Windows\Windows Service Readme.txt" />
+    <Content Include="wsirc.html" />
+    <Content Include="wstelnet.html" />
+    <Content Include="other\node_modules\policyfile\doc\index.html" />
+    <Content Include="other\node_modules\ws\examples\fileapi\public\index.html" />
+    <Content Include="other\node_modules\ws\examples\serverstats\public\index.html" />
+    <Content Include="other\node_modules\ws\examples\serverstats-express_3\public\index.html" />
+    <Content Include="tests\base64.html" />
+    <Content Include="tests\echo.html" />
+    <Content Include="tests\latency.html" />
+    <Content Include="tests\load.html" />
+    <Content Include="tests\plain_echo.html" />
+    <Content Include="tests\simple.html" />
+    <Content Include="wsirc.html" />
+    <Content Include="wstelnet.html" />
+    <Content Include="other\node_modules\policyfile\doc\index.html" />
+    <Content Include="other\node_modules\ws\examples\fileapi\public\index.html" />
+    <Content Include="other\node_modules\ws\examples\serverstats\public\index.html" />
+    <Content Include="other\node_modules\ws\examples\serverstats-express_3\public\index.html" />
+    <Content Include="tests\base64.html" />
+    <Content Include="tests\echo.html" />
+    <Content Include="tests\latency.html" />
+    <Content Include="tests\load.html" />
+    <Content Include="tests\plain_echo.html" />
+    <Content Include="tests\simple.html" />
+  </ItemGroup>
+  <ItemGroup>
+    <Folder Include="build\" />
+    <Folder Include="build\lib\" />
+    <Folder Include="build\lib\websockify" />
+    <Folder Include="docs" />
+    <Folder Include="include\" />
+    <Folder Include="include\web-socket-js" />
+    <Folder Include="other\" />
+    <Folder Include="other\node_modules\" />
+    <Folder Include="other\node_modules\optimist\" />
+    <Folder Include="other\node_modules\optimist\node_modules\" />
+    <Folder Include="other\node_modules\optimist\node_modules\wordwrap\" />
+    <Folder Include="other\node_modules\optimist\node_modules\wordwrap\test" />
+    <Folder Include="other\node_modules\policyfile\" />
+    <Folder Include="other\node_modules\policyfile\doc" />
+    <Folder Include="other\node_modules\ws\" />
+    <Folder Include="other\node_modules\ws\examples\" />
+    <Folder Include="other\node_modules\ws\examples\fileapi\" />
+    <Folder Include="other\node_modules\ws\examples\fileapi\public" />
+    <Folder Include="other\node_modules\ws\examples\serverstats-express_3\" />
+    <Folder Include="other\node_modules\ws\examples\serverstats\" />
+    <Folder Include="other\node_modules\ws\examples\serverstats\public" />
+    <Folder Include="other\node_modules\ws\examples\serverstats-express_3\public" />
+    <Folder Include="tests" />
+    <Folder Include="websockify" />
+    <Folder Include="websockify.egg-info" />
+    <Folder Include="Windows" />
+  </ItemGroup>
+  <Import Project="$(MSBuildToolsPath)\Microsoft.Common.targets" />
+</Project>
