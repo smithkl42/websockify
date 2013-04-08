@@ -25,19 +25,28 @@ import threading
 
 class FlashPolicyHandler(socketserver.BaseRequestHandler):
     def handle(self):
-            # self.request is the TCP socket connected to the client
-            self.data = self.request.recv(1024).strip()
-            print ("%s wrote: %s" % (self.client_address[0], self.data))
-            if self.data.startswith("<policy-file-request/>".encode('latin1')):
-                print ('received policy')
-                self.request.send(bytes('<?xml version="1.0"?><cross-domain-policy><allow-access-from domain="*" to-ports="*" /></cross-domain-policy>', 'UTF-8'))
+        """
+        Handles requests for a Flash policy file
+        """
+        # self.request is the TCP socket connected to the client
+        self.data = self.request.recv(1024).strip()
+        print ("%s wrote: %s" % (self.client_address[0], self.data))
+        if self.data.startswith("<policy-file-request/>".encode('latin1')):
+            print ("received policy request; sending response\n")
+            self.request.send(bytes('<?xml version="1.0"?><cross-domain-policy><allow-access-from domain="*" to-ports="*" /></cross-domain-policy>', 'UTF-8'))
 
 def startPolicyServer():
+    """
+    Serves a flash policy file over port 843. The websocket.py file will
+    serve a flash policy file over the main port, but for some reason
+    this isn't always enough to convince a Flash client to continue.
+    """
     try:
+        print("Starting Flash policy server on port 843\n")
         flashPolicyServer = socketserver.TCPServer(("0.0.0.0", 843), FlashPolicyHandler)
         flashPolicyServer.serve_forever();
     except:
-        print("Unable to open policy server, perhaps because it's already open")
+        print("Unable to open policy server, perhaps because it's already open\n")
 
 class WebSocketProxy(websocket.WebSocketServer):
     """
@@ -46,11 +55,6 @@ class WebSocketProxy(websocket.WebSocketServer):
     encoded/decoded to allow binary data to be sent/received to/from
     the target.
     """
-
-    # Create the flash policy server
-    th = threading.Thread(target=startPolicyServer)
-    th.daemon = True
-    th.start()
 
     buffer_size = 65536
 
@@ -75,6 +79,8 @@ Traffic Legend:
         self.unix_target    = kwargs.pop('unix_target', None)
         self.ssl_target     = kwargs.pop('ssl_target', None)
         self.target_cfg     = kwargs.pop('target_cfg', None)
+        self.no_flash_policy= kwargs.pop('no_flash_policy', None);
+
         # Last 3 timestamps command was run
         self.wrap_times    = [0, 0, 0]
 
@@ -369,6 +375,8 @@ def websockify_init():
             help="Configuration file containing valid targets "
             "in the form 'token: host:port' or, alternatively, a "
             "directory containing configuration files of this form")
+    parser.add_option("--no-flash-policy", action="store_true", 
+            help="don't serve flash policy file on port 843")
     (opts, args) = parser.parse_args()
 
     # Sanity checks
@@ -408,6 +416,12 @@ def websockify_init():
             parser.error("Error parsing target")
         try:    opts.target_port = int(opts.target_port)
         except: parser.error("Error parsing target port")
+
+    # Create the flash policy server
+    if not opts.no_flash_policy:
+        th = threading.Thread(target=startPolicyServer)
+        th.daemon = True
+        th.start()
 
     # Create and start the WebSockets proxy
     server = WebSocketProxy(**opts.__dict__)
