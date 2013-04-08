@@ -1,6 +1,7 @@
 *.pyc
 *.o
 *.so
+*.suo
 other/.lein-deps-sum
 other/classes
 other/lib

@@ -22,7 +22,7 @@ class WebSocketLoad(WebSocketServer):
         self.errors = 0
         self.delay = kwargs.pop('delay')
 
-        print "Prepopulating random array"
+        print("Prepopulating random array")
         self.rand_array = []
         for i in range(0, self.max_packet_size):
             self.rand_array.append(random.randint(0, 9))
@@ -36,7 +36,7 @@ class WebSocketLoad(WebSocketServer):
         try:
             self.responder(self.client)
         except:
-            print "accumulated errors:", self.errors
+            print("accumulated errors:", self.errors)
             self.errors = 0
             raise
 
@@ -57,7 +57,7 @@ class WebSocketLoad(WebSocketServer):
                 err = self.check(frames)
                 if err:
                     self.errors = self.errors + 1
-                    print err
+                    print (err)
 
                 if closed:
                     self.send_close()
@@ -107,7 +107,7 @@ class WebSocketLoad(WebSocketServer):
                 length = int(length)
                 chksum = int(chksum)
             except:
-                print "\n<BOF>" + repr(data) + "<EOF>"
+                print("\n<BOF>" + repr(data) + "<EOF>")
                 err += "Invalid data format\n"
                 continue
 
